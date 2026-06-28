@@ -4,7 +4,7 @@ import { Check, Trophy, Pencil, Plus, Trash2, ChevronLeft, ChevronRight, Flame, 
 
 // Coloque suas credenciais do Supabase aqui:
 const SUPABASE_URL = "https://qowbimlnvqqblsrajyzg.supabase.co";
-const SUPABASE_ANON_KEY = "Tones123@lindao";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvd2JpbWxudnFxYmxzcmFqeXpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODExMjUsImV4cCI6MjA5ODI1NzEyNX0.9YuBfrHI-9cZEAdx_5WSa7DNZZ3coQySBouxwi5xmBo";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
