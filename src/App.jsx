@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Check, Trophy, Pencil, Plus, Trash2, ChevronLeft, ChevronRight, Flame, Award, Utensils, Loader2, Sparkles, User, LogIn, Users, Search, Image, Shield, Swords, Zap, Crown } from "lucide-react";
+import { Check, Trophy, Pencil, Plus, Trash2, ChevronLeft, ChevronRight, Flame, Award, Utensils, Loader2, Sparkles, User, LogIn, Users, Search, Image, Shield, Swords, Zap, Crown, Upload } from "lucide-react";
 
 // Coloque suas credenciais do Supabase aqui:
 const SUPABASE_URL = "https://qowbimlnvqqblsrajyzg.supabase.co";
@@ -47,7 +47,7 @@ export default function BerserkApp() {
   const [searchQuery, setSearchQuery] = useState("");
   const [inspectedUser, setInspectedUser] = useState(null);
 
-  // Configurações de Dieta Local (Salva metas no localStorage por conveniência)
+  // Configurações de Dieta Local
   const [targets, setTargets] = useState(() => {
     const saved = localStorage.getItem("berserk_diet_targets");
     return saved ? JSON.parse(saved) : { kcal: 2000, protein: 150, carb: 200, fat: 60 };
@@ -55,15 +55,15 @@ export default function BerserkApp() {
   const [draft, setDraft] = useState({ food: "", grams: "", kcal: "", protein: "", carb: "", fat: "", vitamins: "" });
   const [calculating, setCalculating] = useState(false);
 
-  // Perfil
+  // Perfil e Upload
   const [profileName, setProfileName] = useState("");
   const [profileAvatar, setProfileAvatar] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("berserk_diet_targets", JSON.stringify(targets));
   }, [targets]);
 
-  // Monitorar Autenticação em Tempo Real
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -111,7 +111,6 @@ export default function BerserkApp() {
     if (data) setLeaderboard(data);
   };
 
-  // Login e Registro Real Online
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthError("");
@@ -138,7 +137,6 @@ export default function BerserkApp() {
     setSession(null); setProfile(null); setRoutines([]); setDailyLogs([]); setMealsToday([]);
   };
 
-  // Interações com Banco de Dados (Marcar Diretrizes)
   const toggleTask = async (task) => {
     if (!session) return;
     const isDone = dailyLogs.find(l => l.routine_id === task.id);
@@ -158,7 +156,6 @@ export default function BerserkApp() {
     fetchLeaderboard();
   };
 
-  // Adicionar e Deletar Itens da Grade
   const addTaskToWeekday = async () => {
     if (!newTask.title.trim() || !session) return;
     await supabase.from("routines").insert({
@@ -177,13 +174,11 @@ export default function BerserkApp() {
     fetchMyRoutines(session.user.id);
   };
 
-  // Gerenciamento de Alimentação Online
   const calcWithAI = async () => {
     if (!draft.food.trim() || !draft.grams) return;
     setCalculating(true);
     const g = Number(draft.grams) || 100;
     
-    // Estimativa local offline rápida para contingência imediata
     setTimeout(() => {
       setDraft(prev => ({
         ...prev,
@@ -219,12 +214,42 @@ export default function BerserkApp() {
     fetchMealsForDate(session.user.id, selectedDate);
   };
 
-  // Modificar Dados Cadastrais
+  // FUNÇÃO ATUALIZADA: Upload direto do dispositivo do Usuário
+  const handleAvatarUpload = async (e) => {
+    try {
+      setUploading(true);
+      if (!e.target.files || e.target.files.length === 0) return;
+      const file = e.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      // Cria um nome de arquivo único baseado no ID do usuário
+      const fileName = `${session.user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Envia o arquivo para o Bucket 'avatars'
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Pega a URL pública gerada pelo Supabase
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setProfileAvatar(publicUrl);
+    } catch (error) {
+      alert("Erro ao subir imagem: " + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const updateProfile = async () => {
     if (!profileName.trim() || !session) return;
     await supabase.from("profiles").update({
       username: profileName.trim().toUpperCase(),
-      avatar_url: profileAvatar.trim()
+      avatar_url: profileAvatar
     }).eq("id", session.user.id);
     fetchUserData(session.user.id);
     fetchLeaderboard();
@@ -236,7 +261,6 @@ export default function BerserkApp() {
     setInspectedUser({ ...targetUser, routines: targetRoutines || [], diet: targetDiet || [] });
   };
 
-  // Cálculos matemáticos de interface
   const getRank = (pts) => {
     const idx = RANKS.findIndex(r => pts >= r.minPts && pts <= r.maxPts);
     return RANKS[idx !== -1 ? idx : 0];
@@ -313,7 +337,7 @@ export default function BerserkApp() {
           </div>
         )}
 
-        {/* ABA 1: HOJE (DIRETRIZES) */}
+        {/* ABA 1: HOJE */}
         {view === "hoje" && (
           <div className="space-y-3">
             <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl">
@@ -343,7 +367,7 @@ export default function BerserkApp() {
           </div>
         )}
 
-        {/* ABA 2: DIETA INTEGRAÇÃO COMPLETA */}
+        {/* ABA 2: DIETA */}
         {view === "dieta" && (
           <div className="space-y-4">
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
@@ -401,7 +425,7 @@ export default function BerserkApp() {
           </div>
         )}
 
-        {/* ABA 3: EDITAR GRADE DE HORÁRIOS */}
+        {/* ABA 3: GRADE */}
         {view === "editar" && (
           <div className="space-y-4">
             <div className="flex gap-1 overflow-x-auto pb-1">
@@ -431,7 +455,7 @@ export default function BerserkApp() {
           </div>
         )}
 
-        {/* ABA 4: COMUNIDADE ONLINE (LEADERBOARD REAL-TIME) */}
+        {/* ABA 4: REDE / COMUNIDADE */}
         {view === "comunidade" && (
           <div className="space-y-4">
             <div className="relative">
@@ -489,20 +513,28 @@ export default function BerserkApp() {
           </div>
         )}
 
-        {/* ABA 5: PERFIL */}
+        {/* ABA 5: PERFIL (MODIFICADA COM ARQUIVOS LOCAIS) */}
         {view === "perfil" && (
           <div className="space-y-4">
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-4">
               <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Painel do Operador</p>
+              
+              <div className="flex flex-col items-center gap-3 py-2">
+                <img src={profileAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"} className="w-20 h-20 rounded-2xl object-cover border-2 border-zinc-800 bg-zinc-950" alt="Avatar" />
+                
+                <label className="cursor-pointer bg-zinc-950 border border-zinc-800 hover:border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold text-zinc-400 flex items-center gap-2 transition-all">
+                  {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                  {uploading ? "Enviando para Nuvem..." : "Escolher Foto dos Arquivos"}
+                  <input type="file" accept="image/*" onChange={handleAvatarUpload} disabled={uploading} className="hidden" />
+                </label>
+              </div>
+
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase">Alterar Codinome</label>
                 <input type="text" value={profileName} onChange={e => setProfileName(e.target.value)} className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none" />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase">URL do Avatar</label>
-                <input type="text" value={profileAvatar} onChange={e => setProfileAvatar(e.target.value)} className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none" />
-              </div>
-              <button onClick={updateProfile} className="w-full bg-red-700 text-white font-bold rounded-xl py-2 text-xs uppercase">Salvar Alterações</button>
+              
+              <button onClick={updateProfile} disabled={uploading} className="w-full bg-red-700 text-white font-bold rounded-xl py-2 text-xs uppercase disabled:opacity-50">Salvar Alterações</button>
               <button onClick={handleLogout} className="w-full bg-zinc-950 text-zinc-500 border border-zinc-800 font-bold rounded-xl py-2 text-xs uppercase hover:text-red-500">Desconectar</button>
             </div>
           </div>
